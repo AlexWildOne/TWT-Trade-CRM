@@ -1,0 +1,464 @@
+/* TWT Trade CRM, Public UI
+   Objectivo: simples, legível, mobile first, sem conflitos com temas.
+*/
+
+.twt-tcrm {
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.twt-tcrm *,
+.twt-tcrm *::before,
+.twt-tcrm *::after {
+  box-sizing: border-box;
+}
+
+/* =========================
+   FORMULÁRIOS
+   ========================= */
+
+.twt-tcrm-form-wrap {
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.twt-tcrm-form {
+  width: 100%;
+}
+
+.twt-tcrm-section {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.twt-tcrm-section-title {
+  margin: 0 0 12px 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.twt-tcrm-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.twt-tcrm-cols-2 {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .twt-tcrm-form-wrap {
+    padding: 18px;
+  }
+
+  .twt-tcrm-cols-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.twt-tcrm-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.twt-tcrm-req {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+.twt-tcrm-help {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  line-height: 1.3;
+  opacity: 0.75;
+}
+
+/* Inputs comuns */
+.twt-tcrm-field input[type="text"],
+.twt-tcrm-field input[type="number"],
+.twt-tcrm-field input[type="email"],
+.twt-tcrm-field input[type="date"],
+.twt-tcrm-field input[type="time"],
+.twt-tcrm-field textarea,
+.twt-tcrm-field select {
+  width: 100%;
+  border: 1px solid rgba(0,0,0,0.18);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 16px;
+  line-height: 1.2;
+  background: #fff;
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+  color: inherit;
+}
+
+.twt-tcrm-field textarea {
+  resize: vertical;
+  min-height: 96px;
+}
+
+.twt-tcrm-field input:focus,
+.twt-tcrm-field textarea:focus,
+.twt-tcrm-field select:focus {
+  border-color: rgba(0,0,0,0.35);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
+}
+
+/* Select: cursor e seta ok */
+.twt-tcrm-field select {
+  cursor: pointer;
+}
+
+/* =========================
+   CHECKBOX E RADIO
+   ========================= */
+
+/* Container de escolha, para checkbox/radio ficarem “clicáveis” */
+.twt-tcrm-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.02);
+}
+
+.twt-tcrm-choice + .twt-tcrm-choice {
+  margin-top: 10px;
+}
+
+.twt-tcrm-choice input[type="checkbox"],
+.twt-tcrm-choice input[type="radio"] {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  cursor: pointer;
+}
+
+.twt-tcrm-choice .twt-tcrm-choice-label {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.twt-tcrm-choice .twt-tcrm-choice-hint {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+/* Se o renderer usar lista para radios */
+.twt-tcrm-options {
+  display: grid;
+  gap: 10px;
+}
+
+/* =========================
+   UPLOADS
+   ========================= */
+
+.twt-tcrm-field input[type="file"] {
+  width: 100%;
+  border: 1px dashed rgba(0,0,0,0.22);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.02);
+  cursor: pointer;
+}
+
+.twt-tcrm-upload-hint {
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.twt-tcrm-upload-note {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* =========================
+   AÇÕES
+   ========================= */
+
+.twt-tcrm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 8px 2px 0 2px;
+}
+
+.twt-tcrm-btn {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #111;
+  color: #fff;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.twt-tcrm-btn:hover {
+  opacity: 0.92;
+}
+
+.twt-tcrm-btn:active {
+  transform: translateY(1px);
+}
+
+/* =========================
+   NOTICES
+   ========================= */
+
+.twt-tcrm-notice {
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 0 0 12px 0;
+  font-size: 14px;
+}
+
+.twt-tcrm-success {
+  background: rgba(46, 204, 113, 0.14);
+  border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
+.twt-tcrm-error {
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+}
+
+/* =========================
+   LISTA DE FORMULÁRIOS
+   ========================= */
+
+.twt-tcrm-assigned-forms ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.twt-tcrm-assigned-forms li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+}
+
+.twt-tcrm-assigned-forms li:last-child {
+  border-bottom: 0;
+}
+
+.twt-tcrm-meta {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.twt-tcrm-code {
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.twt-tcrm-code code {
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.06);
+}
+
+/* =========================
+   DASHBOARDS
+   ========================= */
+
+.twt-tcrm-dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.twt-tcrm-dashboard h2 {
+  margin: 0 0 14px 0;
+}
+
+.twt-tcrm-kpis {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 720px) {
+  .twt-tcrm-kpis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.twt-tcrm-kpi {
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(0,0,0,0.02);
+}
+
+.twt-tcrm-kpi-label {
+  font-size: 12px;
+  opacity: 0.7;
+  margin-bottom: 6px;
+}
+
+.twt-tcrm-kpi-value {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* Cards */
+
+.twt-tcrm-grid-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 920px) {
+  .twt-tcrm-grid-cards {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+.twt-tcrm-card {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.twt-tcrm-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+/* =========================
+   TABELAS
+   ========================= */
+
+.twt-tcrm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.twt-tcrm-table th,
+.twt-tcrm-table td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  vertical-align: top;
+}
+
+.twt-tcrm-table th {
+  font-weight: 700;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+/* =========================
+   INSIGHTS
+   ========================= */
+
+.twt-tcrm-insights {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.twt-tcrm-insight {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  font-size: 14px;
+}
+
+.twt-tcrm-insight:last-child {
+  border-bottom: 0;
+}
+
+.twt-tcrm-insight strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* =========================
+   UTILITÁRIOS
+   ========================= */
+
+.twt-tcrm-muted {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.twt-tcrm-hint {
+  margin-top: 10px;
+  font-size: 13px;
+  opacity: 0.75;
+}
+.twt-tcrm-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.twt-tcrm-unit {
+  white-space: nowrap;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.twt-tcrm-checkwrap {
+  display: flex;
+  align-items: center;
+}
+
+.twt-tcrm-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.twt-tcrm-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.twt-tcrm-radio {
+  display: grid;
+  gap: 8px;
+}
+
+.twt-tcrm-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.twt-tcrm-radio-item input[type="radio"] {
+  width: 18px;
+  height: 18px;
+}

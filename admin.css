@@ -1,0 +1,204 @@
+/* =========================================================
+   TWT Trade CRM, Admin UI
+   Objectivo: clareza, produtividade, sem conflito com WP
+   Nota: todas as regras estão scopeadas a .twt-tcrm-admin
+   ========================================================= */
+
+.twt-tcrm-admin * {
+  box-sizing: border-box;
+}
+
+.twt-tcrm-admin h1,
+.twt-tcrm-admin h2,
+.twt-tcrm-admin h3 {
+  margin-top: 0;
+}
+
+.twt-tcrm-admin .wrap h1 {
+  margin-bottom: 16px;
+}
+
+.twt-tcrm-admin .notice {
+  margin: 12px 0 18px 0;
+}
+
+/* ---------- Layout helpers ---------- */
+
+.twt-tcrm-admin .twt-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 980px) {
+  .twt-tcrm-admin .twt-row-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .twt-tcrm-admin .twt-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.twt-tcrm-admin .twt-card {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.twt-tcrm-admin .twt-card h2,
+.twt-tcrm-admin .twt-card h3 {
+  margin-bottom: 10px;
+}
+
+/* ---------- KPIs ---------- */
+
+.twt-tcrm-admin .twt-kpis {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 8px 0 18px 0;
+}
+
+@media (min-width: 980px) {
+  .twt-tcrm-admin .twt-kpis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.twt-tcrm-admin .twt-kpi {
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.twt-tcrm-admin .twt-kpi-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.twt-tcrm-admin .twt-kpi-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- Forms ---------- */
+
+.twt-tcrm-admin .form-table th {
+  width: 220px;
+  font-weight: 600;
+}
+
+.twt-tcrm-admin select,
+.twt-tcrm-admin input[type="text"],
+.twt-tcrm-admin input[type="number"],
+.twt-tcrm-admin input[type="date"],
+.twt-tcrm-admin textarea {
+  max-width: 460px;
+}
+
+.twt-tcrm-admin textarea {
+  min-height: 96px;
+}
+
+.twt-tcrm-admin .description {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* Melhor leitura em selects longos */
+.twt-tcrm-admin select[multiple] {
+  max-width: 520px;
+  min-width: 320px;
+}
+
+/* ---------- Tables ---------- */
+
+.twt-tcrm-admin table.widefat {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.twt-tcrm-admin table.widefat thead th {
+  font-weight: 700;
+}
+
+.twt-tcrm-admin table.widefat td,
+.twt-tcrm-admin table.widefat th {
+  vertical-align: middle;
+}
+
+.twt-tcrm-admin table.widefat td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.twt-tcrm-admin table.widefat td span {
+  white-space: nowrap;
+}
+
+/* Active / Inactive labels */
+.twt-tcrm-admin .status-active {
+  color: #1e8e3e;
+  font-weight: 800;
+}
+
+.twt-tcrm-admin .status-inactive {
+  color: #b32d2e;
+  font-weight: 800;
+}
+
+/* ---------- Buttons ---------- */
+
+.twt-tcrm-admin .button-primary {
+  font-weight: 700;
+}
+
+.twt-tcrm-admin .button {
+  transition: opacity 120ms ease;
+}
+
+.twt-tcrm-admin .button:hover {
+  opacity: 0.9;
+}
+
+/* ---------- Code blocks ---------- */
+
+.twt-tcrm-admin code {
+  background: rgba(0,0,0,0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* ---------- Utilities ---------- */
+
+.twt-tcrm-admin .twt-inline {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.twt-tcrm-admin .twt-muted {
+  opacity: 0.7;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 782px) {
+  .twt-tcrm-admin .form-table th {
+    width: auto;
+  }
+
+  .twt-tcrm-admin select,
+  .twt-tcrm-admin input,
+  .twt-tcrm-admin textarea {
+    max-width: 100%;
+  }
+}
