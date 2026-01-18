@@ -192,4 +192,3 @@ final class TWT_TCRM_Insights {
   }
 }
 
-TWT_TCRM_Insights::boot();
