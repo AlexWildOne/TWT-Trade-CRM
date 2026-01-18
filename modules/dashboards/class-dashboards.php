@@ -19,9 +19,7 @@ final class TWT_TCRM_Dashboards {
     }
 
     $user_id = get_current_user_id();
-
     $kpis = self::get_user_kpis($user_id);
-    $reports = self::get_recent_reports(['user_id' => $user_id], 15);
 
     $out = '';
     $out .= '<div class="twt-tcrm twt-tcrm-dashboard twt-tcrm-user-dashboard">';
@@ -35,17 +33,26 @@ final class TWT_TCRM_Dashboards {
     ]);
 
     $out .= '<div class="twt-tcrm-grid-cards">';
+
     $out .= '<div class="twt-tcrm-card">';
     $out .= '<h3>Os teus últimos reports</h3>';
-    $out .= self::render_reports_table($reports, 'user');
+
+    if (shortcode_exists('twt_submissions_table')) {
+      $out .= do_shortcode(
+        '[twt_submissions_table scope="user" per_page="10" show_answers="0" show_export="0" show_filters="0" limit_latest="10" view_all_url="https://report.thewildtheory.com/dashboard-user/"]'
+      );
+    } else {
+      $out .= '<p class="twt-tcrm-muted">Tabela não disponível (shortcode twt_submissions_table).</p>';
+    }
+
     $out .= '</div>';
 
     $out .= '<div class="twt-tcrm-card">';
     $out .= '<h3>Sugestões</h3>';
     $out .= self::render_insights_for_user($user_id);
     $out .= '</div>';
-    $out .= '</div>';
 
+    $out .= '</div>';
     $out .= '</div>';
 
     return $out;
@@ -62,13 +69,11 @@ final class TWT_TCRM_Dashboards {
 
     $viewer_id = get_current_user_id();
 
-    // Admin-like pode forçar brand_id via shortcode: [twt_brand_dashboard brand_id="123"]
     $atts = shortcode_atts([
       'brand_id' => 0,
     ], $atts);
 
     $brand_id = (int) $atts['brand_id'];
-
     if (!$brand_id) {
       $brand_id = (int) get_user_meta($viewer_id, 'twt_brand_id', true);
     }
@@ -82,16 +87,14 @@ final class TWT_TCRM_Dashboards {
       return '<p>Marca inválida.</p>';
     }
 
-    // Se não for admin-like, só pode ver a sua própria marca
-    if (!TWT_TCRM_Roles::is_admin_like($viewer_id)) {
+    if (!class_exists('TWT_TCRM_Roles') || !TWT_TCRM_Roles::is_admin_like($viewer_id)) {
       $own = (int) get_user_meta($viewer_id, 'twt_brand_id', true);
-      if ((int)$own !== (int)$brand_id) {
+      if ((int) $own !== (int) $brand_id) {
         return '<p>Sem acesso a esta marca.</p>';
       }
     }
 
     $kpis = self::get_brand_kpis($brand_id);
-    $reports = self::get_recent_reports(['brand_id' => $brand_id], 25);
 
     $out = '';
     $out .= '<div class="twt-tcrm twt-tcrm-dashboard twt-tcrm-brand-dashboard">';
@@ -105,17 +108,24 @@ final class TWT_TCRM_Dashboards {
     ]);
 
     $out .= '<div class="twt-tcrm-grid-cards">';
+
     $out .= '<div class="twt-tcrm-card">';
-    $out .= '<h3>Últimos reports</h3>';
-    $out .= self::render_reports_table($reports, 'brand');
+    $out .= '<h3>Reports da Marca</h3>';
+
+    if (shortcode_exists('twt_submissions_table')) {
+      $out .= do_shortcode('[twt_submissions_table scope="brand" brand_id="' . (int) $brand_id . '" per_page="25" show_answers="1" show_export="1" show_filters="1"]');
+    } else {
+      $out .= '<p class="twt-tcrm-muted">Tabela não disponível (shortcode twt_submissions_table).</p>';
+    }
+
     $out .= '</div>';
 
     $out .= '<div class="twt-tcrm-card">';
     $out .= '<h3>Sugestões para a marca</h3>';
     $out .= self::render_insights_for_brand($brand_id);
     $out .= '</div>';
-    $out .= '</div>';
 
+    $out .= '</div>';
     $out .= '</div>';
 
     return $out;
@@ -135,22 +145,26 @@ final class TWT_TCRM_Dashboards {
 
     $reports_7d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(*) FROM $t_sub WHERE user_id = %d AND submitted_at >= %s",
-      $user_id, $since_7d
+      $user_id,
+      $since_7d
     ));
 
     $reports_30d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(*) FROM $t_sub WHERE user_id = %d AND submitted_at >= %s",
-      $user_id, $since_30d
+      $user_id,
+      $since_30d
     ));
 
     $brands_30d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(DISTINCT brand_id) FROM $t_sub WHERE user_id = %d AND submitted_at >= %s",
-      $user_id, $since_30d
+      $user_id,
+      $since_30d
     ));
 
     $campaigns_30d = (int) $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(DISTINCT campaign_id) FROM $t_sub WHERE user_id = %d AND submitted_at >= %s AND campaign_id IS NOT NULL",
-      $user_id, $since_30d
+      "SELECT COUNT(DISTINCT campaign_id) FROM $t_sub WHERE user_id = %d AND submitted_at >= %s AND campaign_id <> 0",
+      $user_id,
+      $since_30d
     ));
 
     return [
@@ -171,22 +185,26 @@ final class TWT_TCRM_Dashboards {
 
     $reports_7d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(*) FROM $t_sub WHERE brand_id = %d AND submitted_at >= %s",
-      $brand_id, $since_7d
+      $brand_id,
+      $since_7d
     ));
 
     $reports_30d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(*) FROM $t_sub WHERE brand_id = %d AND submitted_at >= %s",
-      $brand_id, $since_30d
+      $brand_id,
+      $since_30d
     ));
 
     $users_30d = (int) $wpdb->get_var($wpdb->prepare(
       "SELECT COUNT(DISTINCT user_id) FROM $t_sub WHERE brand_id = %d AND submitted_at >= %s",
-      $brand_id, $since_30d
+      $brand_id,
+      $since_30d
     ));
 
     $campaigns_30d = (int) $wpdb->get_var($wpdb->prepare(
-      "SELECT COUNT(DISTINCT campaign_id) FROM $t_sub WHERE brand_id = %d AND submitted_at >= %s AND campaign_id IS NOT NULL",
-      $brand_id, $since_30d
+      "SELECT COUNT(DISTINCT campaign_id) FROM $t_sub WHERE brand_id = %d AND submitted_at >= %s AND campaign_id <> 0",
+      $brand_id,
+      $since_30d
     ));
 
     return [
@@ -198,100 +216,15 @@ final class TWT_TCRM_Dashboards {
   }
 
   /* =========================================================
-     REPORT LISTS
-     ========================================================= */
-
-  private static function get_recent_reports($filters = [], $limit = 20) {
-    global $wpdb;
-    $t_sub = TWT_TCRM_DB::table_submissions();
-
-    $where = "WHERE 1=1";
-    $params = [];
-
-    if (!empty($filters['user_id'])) {
-      $where .= " AND user_id = %d";
-      $params[] = (int) $filters['user_id'];
-    }
-
-    if (!empty($filters['brand_id'])) {
-      $where .= " AND brand_id = %d";
-      $params[] = (int) $filters['brand_id'];
-    }
-
-    if (!empty($filters['campaign_id'])) {
-      $where .= " AND campaign_id = %d";
-      $params[] = (int) $filters['campaign_id'];
-    }
-
-    $limit = max(1, min(200, (int) $limit));
-
-    $sql = "SELECT id, form_id, brand_id, campaign_id, user_id, submitted_at, status
-            FROM $t_sub
-            $where
-            ORDER BY submitted_at DESC
-            LIMIT $limit";
-
-    if ($params) {
-      $sql = $wpdb->prepare($sql, $params);
-    }
-
-    $rows = $wpdb->get_results($sql);
-    return $rows ? $rows : [];
-  }
-
-  private static function render_reports_table($rows, $mode = 'user') {
-    if (!$rows) {
-      return '<p class="twt-tcrm-muted">Ainda não há reports.</p>';
-    }
-
-    $out = '';
-    $out .= '<table class="twt-tcrm-table">';
-    $out .= '<thead><tr>';
-    $out .= '<th>Data</th>';
-    $out .= '<th>Formulário</th>';
-    $out .= '<th>Marca</th>';
-    $out .= '<th>Campanha</th>';
-    if ($mode === 'brand') $out .= '<th>Utilizador</th>';
-    $out .= '</tr></thead><tbody>';
-
-    foreach ($rows as $r) {
-      $when = $r->submitted_at ? mysql2date('Y-m-d H:i', $r->submitted_at) : '';
-      $form_title = $r->form_id ? get_the_title((int)$r->form_id) : '';
-      $brand_title = $r->brand_id ? get_the_title((int)$r->brand_id) : '';
-      $camp_title = $r->campaign_id ? get_the_title((int)$r->campaign_id) : 'Sem';
-
-      $out .= '<tr>';
-      $out .= '<td>' . esc_html($when) . '</td>';
-      $out .= '<td>' . esc_html($form_title) . '</td>';
-      $out .= '<td>' . esc_html($brand_title) . '</td>';
-      $out .= '<td>' . esc_html($camp_title) . '</td>';
-
-      if ($mode === 'brand') {
-        $u = get_userdata((int)$r->user_id);
-        $u_label = $u ? $u->display_name : ('User #' . (int)$r->user_id);
-        $out .= '<td>' . esc_html($u_label) . '</td>';
-      }
-
-      $out .= '</tr>';
-    }
-
-    $out .= '</tbody></table>';
-
-    return $out;
-  }
-
-  /* =========================================================
-     INSIGHTS (placeholder compatível)
+     INSIGHTS
      ========================================================= */
 
   private static function render_insights_for_user($user_id) {
-    // Se existir um módulo de insights mais avançado, usamos
     if (class_exists('TWT_TCRM_Insights') && method_exists('TWT_TCRM_Insights', 'get_for_user')) {
       $items = TWT_TCRM_Insights::get_for_user($user_id);
       return self::render_insights_list($items);
     }
 
-    // Placeholder mínimo
     return '<p class="twt-tcrm-muted">Ainda não há sugestões configuradas. Em breve.</p>';
   }
 
@@ -338,7 +271,7 @@ final class TWT_TCRM_Dashboards {
       $value = isset($it['value']) ? $it['value'] : '';
       $out .= '<div class="twt-tcrm-kpi">';
       $out .= '<div class="twt-tcrm-kpi-label">' . esc_html($label) . '</div>';
-      $out .= '<div class="twt-tcrm-kpi-value">' . esc_html((string)$value) . '</div>';
+      $out .= '<div class="twt-tcrm-kpi-value">' . esc_html((string) $value) . '</div>';
       $out .= '</div>';
     }
     $out .= '</div>';
