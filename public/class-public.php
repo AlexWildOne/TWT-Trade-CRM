@@ -14,6 +14,7 @@ final class TWT_TCRM_Public {
   public static function boot() {
     // Shortcodes em builders/caches
     add_filter('widget_text', 'do_shortcode');
+    add_filter('widget_text_content', 'do_shortcode');
     add_filter('the_content', [__CLASS__, 'maybe_do_shortcodes'], 9);
 
     // Rotas públicas (rewrite)
@@ -37,7 +38,7 @@ final class TWT_TCRM_Public {
    * Helper para ler brand_id de user meta, e validar que é marca
    */
   public static function get_user_brand_id($user_id) {
-    $brand_id = (int) get_user_meta((int)$user_id, 'twt_brand_id', true);
+    $brand_id = (int) get_user_meta((int) $user_id, 'twt_brand_id', true);
     if (!$brand_id) return 0;
 
     $p = get_post($brand_id);
@@ -55,6 +56,10 @@ final class TWT_TCRM_Public {
    * /twt-pick/{location_id}/
    */
   public static function register_rewrite_rules() {
+    // Garante que os query vars são reconhecidos em setups mais rígidos
+    add_rewrite_tag('%' . self::QV_PICK . '%', '([0-9]+)');
+    add_rewrite_tag('%' . self::QV_LOCATION_ID . '%', '([0-9]+)');
+
     add_rewrite_rule(
       '^twt-pick/([0-9]+)/?$',
       'index.php?' . self::QV_PICK . '=1&' . self::QV_LOCATION_ID . '=$matches[1]',
@@ -109,7 +114,6 @@ final class TWT_TCRM_Public {
     $ajax_url = admin_url('admin-ajax.php');
     $nonce = wp_create_nonce(self::AJAX_ACTION);
 
-    // HTML simples, focado em mobile
     status_header(200);
     nocache_headers();
 
@@ -149,7 +153,6 @@ final class TWT_TCRM_Public {
 
     echo '<div class="meta">' . implode('<br>', $meta_bits) . '</div>';
 
-    // Se não houver coordenadas, ainda dá para registar pick, mas sem validação de raio
     if ($lat === '' || $lng === '') {
       echo '<div class="notice err">Este local ainda não tem coordenadas (lat/lng). Podes registar, mas sem validação de raio.</div>';
     }
@@ -170,14 +173,11 @@ final class TWT_TCRM_Public {
 
     echo '</div></div>';
 
-    // JS inline: pede geolocalização e chama AJAX
     echo '<script>
       (function(){
         var ajaxUrl = ' . json_encode($ajax_url) . ';
         var nonce = ' . json_encode($nonce) . ';
-        var locationId = ' . (int)$location_id . ';
-        var locLat = ' . json_encode($lat === '' ? null : (float)$lat) . ';
-        var locLng = ' . json_encode($lng === '' ? null : (float)$lng) . ';
+        var locationId = ' . (int) $location_id . ';
 
         var btn = document.getElementById("twtBtn");
         var emailEl = document.getElementById("twtEmail");
@@ -202,11 +202,6 @@ final class TWT_TCRM_Public {
           btn.disabled = true;
 
           var email = (emailEl.value || "").trim();
-          if (!email) {
-            btn.disabled = false;
-            show("err", "Tens de preencher o email.");
-            return;
-          }
 
           post({
             action: ' . json_encode(self::AJAX_ACTION) . ',
@@ -227,7 +222,7 @@ final class TWT_TCRM_Public {
 
             var d = res.data || {};
             var action = d.pick_action || "";
-            var inside = (d.within_radius === 1) ? "Sim" : "Não";
+            var inside = (d.within_radius === 1) ? "Sim" : (d.within_radius === 0 ? "Não" : "Não calculado");
             var dist = (d.distance_m !== null && d.distance_m !== undefined) ? (String(d.distance_m) + " m") : "-";
 
             var nice = (action === "checkout") ? "Checkout registado." : "Check-in registado.";
@@ -243,7 +238,6 @@ final class TWT_TCRM_Public {
           notice.innerHTML = "";
 
           if (!navigator.geolocation) {
-            // Sem geolocalização, regista na mesma
             doPick(null, null, null);
             return;
           }
@@ -253,10 +247,7 @@ final class TWT_TCRM_Public {
           navigator.geolocation.getCurrentPosition(function(pos){
             btn.disabled = false;
             var c = pos && pos.coords ? pos.coords : null;
-            var lat = c ? c.latitude : null;
-            var lng = c ? c.longitude : null;
-            var acc = c ? c.accuracy : null;
-            doPick(lat, lng, acc);
+            doPick(c ? c.latitude : null, c ? c.longitude : null, c ? c.accuracy : null);
           }, function(){
             btn.disabled = false;
             // Se o user recusar, regista na mesma, mas sem validação
@@ -302,13 +293,9 @@ final class TWT_TCRM_Public {
     $location_id = isset($_POST['location_id']) ? (int) $_POST['location_id'] : 0;
     $email = isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : '';
 
-    $lat = isset($_POST['lat']) ? trim((string) wp_unslash($_POST['lat'])) : '';
-    $lng = isset($_POST['lng']) ? trim((string) wp_unslash($_POST['lng'])) : '';
-    $accuracy = isset($_POST['accuracy']) ? trim((string) wp_unslash($_POST['accuracy'])) : '';
-
-    $lat = ($lat === '') ? null : (float) $lat;
-    $lng = ($lng === '') ? null : (float) $lng;
-    $accuracy = ($accuracy === '') ? null : (float) $accuracy;
+    $lat = isset($_POST['lat']) ? self::to_float_or_null(wp_unslash($_POST['lat'])) : null;
+    $lng = isset($_POST['lng']) ? self::to_float_or_null(wp_unslash($_POST['lng'])) : null;
+    $accuracy = isset($_POST['accuracy']) ? self::to_float_or_null(wp_unslash($_POST['accuracy'])) : null;
 
     if (!$location_id) {
       wp_send_json_error(['message' => 'Local inválido.'], 400);
@@ -329,6 +316,11 @@ final class TWT_TCRM_Public {
 
     if (is_user_logged_in()) {
       $user_id = get_current_user_id();
+      // se não enviou email, usamos o do utilizador autenticado (para log)
+      if (!$email) {
+        $u = wp_get_current_user();
+        if ($u && $u->exists()) $email = (string) $u->user_email;
+      }
     } else {
       if (!$email) {
         wp_send_json_error(['message' => 'Email obrigatório.'], 400);
@@ -363,11 +355,10 @@ final class TWT_TCRM_Public {
     $within = null;
 
     if ($loc_lat !== '' && $loc_lng !== '' && $lat !== null && $lng !== null) {
-      $distance_m = self::distance_meters((float)$loc_lat, (float)$loc_lng, (float)$lat, (float)$lng);
+      $distance_m = self::distance_meters((float) $loc_lat, (float) $loc_lng, (float) $lat, (float) $lng);
       $within = ($distance_m <= $radius) ? 1 : 0;
     }
 
-    // Guardar pick na DB
     if (!method_exists('TWT_TCRM_DB', 'table_location_picks')) {
       wp_send_json_error(['message' => 'Tabela de picks ainda não existe na DB.'], 500);
     }
@@ -378,9 +369,11 @@ final class TWT_TCRM_Public {
     $meta = [
       'ua' => isset($_SERVER['HTTP_USER_AGENT']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'])) : '',
       'ip' => isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '',
-      'ref' => isset($_POST['_wp_http_referer']) ? esc_url_raw(wp_unslash($_POST['_wp_http_referer'])) : '',
     ];
 
+    // IMPORTANTE (alinhado com DB 0.3.0):
+    // - within_radius pode ser NULL (não calculado)
+    // - wpdb formats: usar %s para NULLables (lat/lng/etc), porque %f/%d convertem NULL -> 0
     $ins = $wpdb->insert(
       $t,
       [
@@ -389,24 +382,39 @@ final class TWT_TCRM_Public {
         'campaign_id' => $campaign_id ? $campaign_id : null,
         'user_id' => $user_id ? $user_id : null,
         'user_email' => $email ? $email : null,
+
         'pick_action' => $pick_action,
-        'pick_source' => 'nfc',
+        'pick_source' => 'web',
         'picked_at' => current_time('mysql'),
 
-        'lat' => ($lat === null) ? null : (string)$lat,
-        'lng' => ($lng === null) ? null : (string)$lng,
-        'accuracy_m' => ($accuracy === null) ? null : (string)$accuracy,
+        'lat' => ($lat === null) ? null : (string) $lat,
+        'lng' => ($lng === null) ? null : (string) $lng,
+        'accuracy_m' => ($accuracy === null) ? null : (int) round($accuracy),
 
-        'distance_m' => ($distance_m === null) ? null : (string) round($distance_m, 2),
-        'within_radius' => ($within === null) ? null : (int)$within,
+        'within_radius' => $within,
+        'distance_m' => ($distance_m === null) ? null : (int) round($distance_m),
 
         'meta_json' => wp_json_encode($meta, JSON_UNESCAPED_UNICODE),
       ],
       [
-        '%d','%d','%d','%d','%s','%s','%s','%s',
-        '%s','%s','%s',
-        '%s','%d',
-        '%s'
+        '%d', // location_id
+        '%d', // brand_id
+        '%d', // campaign_id
+        '%d', // user_id
+        '%s', // user_email
+
+        '%s', // pick_action
+        '%s', // pick_source
+        '%s', // picked_at
+
+        '%s', // lat (nullable)
+        '%s', // lng (nullable)
+        '%d', // accuracy_m (nullable ok)
+
+        '%d', // within_radius (nullable ok)
+        '%d', // distance_m (nullable ok)
+
+        '%s', // meta_json
       ]
     );
 
@@ -432,7 +440,6 @@ final class TWT_TCRM_Public {
     }
 
     if (!method_exists('TWT_TCRM_DB', 'table_location_assignments')) {
-      // Se ainda não há tabela, falha fechado
       return false;
     }
 
@@ -441,7 +448,8 @@ final class TWT_TCRM_Public {
 
     $found = $wpdb->get_var($wpdb->prepare(
       "SELECT id FROM $t WHERE user_id = %d AND location_id = %d AND active = 1 LIMIT 1",
-      $user_id, $location_id
+      $user_id,
+      $location_id
     ));
 
     return !empty($found);
@@ -463,7 +471,8 @@ final class TWT_TCRM_Public {
        WHERE location_id = %d AND user_id = %d
        ORDER BY id DESC
        LIMIT 1",
-      $location_id, $user_id
+      $location_id,
+      $user_id
     ));
 
     $last = is_string($last) ? strtolower($last) : '';
@@ -472,20 +481,31 @@ final class TWT_TCRM_Public {
   }
 
   private static function distance_meters($lat1, $lng1, $lat2, $lng2) {
-    // Haversine
     $r = 6371000; // metros
     $phi1 = deg2rad($lat1);
     $phi2 = deg2rad($lat2);
     $dphi = deg2rad($lat2 - $lat1);
     $dl = deg2rad($lng2 - $lng1);
 
-    $a = sin($dphi/2) * sin($dphi/2) +
+    $a = sin($dphi / 2) * sin($dphi / 2) +
       cos($phi1) * cos($phi2) *
-      sin($dl/2) * sin($dl/2);
+      sin($dl / 2) * sin($dl / 2);
 
-    $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
     return $r * $c;
   }
-}
 
-TWT_TCRM_Public::boot();
+  private static function to_float_or_null($raw) {
+    if ($raw === null || $raw === '') return null;
+    $s = is_string($raw) ? trim($raw) : (string) $raw;
+    if ($s === '') return null;
+
+    $s = str_replace(',', '.', $s);
+    $s = preg_replace('/[^0-9\.\-]/', '', $s);
+
+    if ($s === '' || $s === '-' || $s === '.' || $s === '-.') return null;
+
+    $v = is_numeric($s) ? (float) $s : null;
+    return is_finite($v) ? $v : null;
+  }
+}
