@@ -1,6 +1,6 @@
 /* TWT Trade CRM, Public UI
    Objectivo: simples, legível, mobile first, sem conflitos com temas.
-*/
+ */
 
 .twt-tcrm {
   box-sizing: border-box;
@@ -115,6 +115,22 @@
 /* Select: cursor e seta ok */
 .twt-tcrm-field select {
   cursor: pointer;
+}
+
+/* =========================
+   FIELDSET (RADIO/CHECKBOX)
+   ========================= */
+
+.twt-tcrm-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.twt-tcrm-fieldset > legend {
+  padding: 0;
+  margin: 0 0 6px 0;
+  font-size: 14px;
 }
 
 /* =========================
@@ -415,6 +431,7 @@
   font-size: 13px;
   opacity: 0.75;
 }
+
 .twt-tcrm-inline {
   display: flex;
   align-items: center;

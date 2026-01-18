@@ -1,0 +1,79 @@
+/* Add these blocks at the end of your theme.css */
+
+/* Wizard */
+.twt-tcrm-wizard {
+  margin-top: 10px;
+}
+
+.twt-tcrm-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 14px 0;
+}
+
+.twt-tcrm-progress-bar {
+  flex: 1;
+  height: 10px;
+  background: var(--twt-surface-2);
+  border: 1px solid var(--twt-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.twt-tcrm-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--twt-primary);
+  width: 0%;
+}
+
+.twt-tcrm-progress-label {
+  min-width: 48px;
+  text-align: right;
+  color: var(--twt-muted);
+  font-weight: 700;
+}
+
+/* Wizard actions */
+.twt-tcrm-wizard-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.twt-tcrm-btn-secondary {
+  background: transparent !important;
+  color: var(--twt-primary) !important;
+  border-color: var(--twt-border) !important;
+}
+
+/* Width helpers (presets) */
+.twt-tcrm-col { width: 100%; }
+.twt-tcrm-w-25 { width: 25%; }
+.twt-tcrm-w-33 { width: 33.3333%; }
+.twt-tcrm-w-50 { width: 50%; }
+.twt-tcrm-w-66 { width: 66.6667%; }
+.twt-tcrm-w-75 { width: 75%; }
+.twt-tcrm-w-100 { width: 100%; }
+
+/* Ensure grid respects manual widths */
+.twt-tcrm-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.twt-tcrm-cols-2 > .twt-tcrm-col {
+  /* allow widths to work inside */
+}
+
+/* On small screens: full width */
+@media (max-width: 700px) {
+  .twt-tcrm-w-25,
+  .twt-tcrm-w-33,
+  .twt-tcrm-w-50,
+  .twt-tcrm-w-66,
+  .twt-tcrm-w-75 {
+    width: 100%;
+  }
+}

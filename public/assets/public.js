@@ -16,18 +16,26 @@
     return v ? String(v) : '0';
   }
 
+  function cssEscape(s) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(s);
+    }
+    return String(s).replace(/["\\]/g, '\\$&');
+  }
+
   function serializeForm($form) {
     var data = {};
+
     $form.find('input, textarea, select').each(function () {
       var $el = $(this);
       var name = $el.attr('name');
       if (!name) return;
 
-      // Ignora campos de sistema
       if (name === 'action' || name === 'twt_form_id' || name === '_wp_http_referer') return;
       if (name.indexOf('twt_tcrm_nonce') !== -1) return;
 
       var type = ($el.attr('type') || '').toLowerCase();
+      if (type === 'hidden') return;
 
       if (type === 'checkbox') {
         data[name] = $el.is(':checked') ? '1' : '0';
@@ -53,7 +61,8 @@
 
     Object.keys(draft).forEach(function (name) {
       if (name === '_savedAt') return;
-      var $els = $form.find('[name="' + CSS.escape(name) + '"]');
+
+      var $els = $form.find('[name="' + cssEscape(name) + '"]');
       if (!$els.length) return;
 
       var $first = $els.eq(0);
@@ -82,9 +91,7 @@
       var payload = serializeForm($form);
       localStorage.setItem(key, JSON.stringify(payload));
       showHint($form, 'Rascunho guardado');
-    } catch (e) {
-      // Se falhar, não bloqueia o user
-    }
+    } catch (e) {}
   }
 
   function loadDraft($form) {
@@ -96,12 +103,11 @@
       var draft = JSON.parse(raw);
       if (!draft || typeof draft !== 'object') return;
 
-      // Só tenta aplicar se o formulário estiver vazio na maioria dos campos
       var filled = 0;
       $form.find('input[name^="twt_q["], textarea[name^="twt_q["], select[name^="twt_q["]').each(function () {
         var $el = $(this);
         var t = ($el.attr('type') || '').toLowerCase();
-        if (t === 'checkbox' || t === 'radio') return;
+        if (t === 'checkbox' || t === 'radio' || t === 'hidden') return;
 
         var v = ($el.val() || '').toString().trim();
         if (v) filled++;
@@ -111,18 +117,14 @@
         applyDraft($form, draft);
         showHint($form, 'Rascunho restaurado');
       }
-    } catch (e) {
-      // ignora
-    }
+    } catch (e) {}
   }
 
   function clearDraft($form) {
     try {
       var key = storageKey(getFormId(), getUserId());
       localStorage.removeItem(key);
-    } catch (e) {
-      // ignora
-    }
+    } catch (e) {}
   }
 
   function showHint($form, text) {
@@ -143,12 +145,14 @@
     }, 1200);
   }
 
-  function validateRequired($form) {
+  function validateRequired($scope) {
     var ok = true;
     var firstBad = null;
 
-    $form.find('[required]').each(function () {
+    $scope.find('[required]').each(function () {
       var $el = $(this);
+      if ($el.is(':disabled')) return;
+
       var type = ($el.attr('type') || '').toLowerCase();
 
       if (type === 'checkbox') {
@@ -162,7 +166,7 @@
       if (type === 'radio') {
         var name = $el.attr('name');
         if (!name) return;
-        var anyChecked = $form.find('input[type="radio"][name="' + CSS.escape(name) + '"]:checked').length > 0;
+        var anyChecked = $scope.find('input[type="radio"][name="' + cssEscape(name) + '"]:checked').length > 0;
         if (!anyChecked) {
           ok = false;
           firstBad = firstBad || $el;
@@ -180,11 +184,8 @@
     if (!ok && firstBad) {
       try {
         firstBad[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } catch (e) {
-        // ignora
-      }
+      } catch (e) {}
       firstBad.focus();
-      showHint($form, 'Há campos obrigatórios por preencher');
     }
 
     return ok;
@@ -200,31 +201,137 @@
     });
   }
 
-  $(function () {
-    var $form = $('.twt-tcrm-form');
-    if (!$form.length) return;
+  function bindSubmissionsTableAutoSubmit(context) {
+    $(context)
+      .find('.twt-tcrm-submissions-table form')
+      .each(function () {
+        var $filterForm = $(this);
+        if ($filterForm.data('twtBoundSubmissionsFilters')) return;
+        $filterForm.data('twtBoundSubmissionsFilters', true);
 
-    // IMPORTANTE: para o draft funcionar por user e por form
-    // o HTML do form deve incluir data-form-id e data-user-id
-    // vamos garantir isto no renderer/shortcode já a seguir, se ainda não tiveres
+        var $formSelect = $filterForm.find('select[name="form_id"]');
+        if (!$formSelect.length) return;
 
-    // Se houver sucesso, limpa draft
-    if (window.location.search.indexOf('twt_tcrm_ok=1') !== -1) {
-      clearDraft($form);
+        $formSelect.on('change', function () {
+          var $camp = $filterForm.find('select[name="campaign_id"]');
+          var $loc = $filterForm.find('select[name="location_id"]');
+
+          if ($camp.length) $camp.val('0');
+          if ($loc.length) $loc.val('0');
+
+          $filterForm.find('input[name="twt_page"]').remove();
+          $filterForm.trigger('submit');
+        });
+      });
+  }
+
+  // NEW: Wizard (steps + progress)
+  function bindWizard($form) {
+    var $wizard = $form.find('.twt-tcrm-wizard');
+    if (!$wizard.length) return;
+
+    var $steps = $wizard.find('[data-twt-step]');
+    if (!$steps.length) return;
+
+    var total = parseInt($wizard.attr('data-steps-total') || $steps.length, 10);
+    if (!total || total < 1) total = $steps.length;
+
+    var stepIndex = 1;
+
+    function showStep(n) {
+      stepIndex = Math.max(1, Math.min(total, n));
+      $steps.each(function () {
+        var $s = $(this);
+        var idx = parseInt($s.attr('data-step-index') || '0', 10);
+        if (idx === stepIndex) {
+          $s.prop('hidden', false);
+        } else {
+          $s.prop('hidden', true);
+        }
+      });
+
+      updateProgress();
+      scrollToTopOfWizard();
     }
 
-    loadDraft($form);
-    bindAutosave($form);
+    function updateProgress() {
+      var pct = total <= 1 ? 100 : Math.round(((stepIndex - 1) / (total - 1)) * 100);
+      var $fill = $wizard.find('.twt-tcrm-progress-fill');
+      var $label = $wizard.find('[data-twt-progress-label]');
 
-    $form.on('submit', function (e) {
-      if (!validateRequired($form)) {
-        e.preventDefault();
-        return false;
+      if ($fill.length) $fill.css('width', pct + '%');
+      if ($label.length) $label.text(pct + '%');
+    }
+
+    function scrollToTopOfWizard() {
+      try {
+        $wizard[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {}
+    }
+
+    // next/prev buttons
+    $wizard.on('click', '[data-twt-next]', function () {
+      var $current = $wizard.find('[data-twt-step][data-step-index="' + stepIndex + '"]');
+      if (!validateRequired($current)) {
+        showHint($form, 'Há campos obrigatórios por preencher');
+        return;
       }
-      // última gravação rápida antes de enviar
-      saveDraft($form);
-      return true;
+      showStep(stepIndex + 1);
     });
+
+    $wizard.on('click', '[data-twt-prev]', function () {
+      showStep(stepIndex - 1);
+    });
+
+    // submit button (wizard)
+    $wizard.on('click', '[data-twt-submit]', function () {
+      var $current = $wizard.find('[data-twt-step][data-step-index="' + stepIndex + '"]');
+      if (!validateRequired($current)) {
+        showHint($form, 'Há campos obrigatórios por preencher');
+        return;
+      }
+
+      // final guard: validate whole form required
+      if (!validateRequired($form)) {
+        showHint($form, 'Há campos obrigatórios por preencher');
+        return;
+      }
+
+      $form.trigger('submit');
+    });
+
+    // hide default submit button area if wizard is active (we use step buttons)
+    $form.find('.twt-tcrm-actions').prop('hidden', true);
+
+    // initial
+    showStep(1);
+  }
+
+  $(function () {
+    var $form = $('.twt-tcrm-form');
+    if ($form.length) {
+      if (window.location.search.indexOf('twt_tcrm_ok=1') !== -1) {
+        clearDraft($form);
+      }
+
+      loadDraft($form);
+      bindAutosave($form);
+
+      $form.on('submit', function (e) {
+        if (!validateRequired($form)) {
+          e.preventDefault();
+          showHint($form, 'Há campos obrigatórios por preencher');
+          return false;
+        }
+        saveDraft($form);
+        return true;
+      });
+
+      // NEW
+      bindWizard($form);
+    }
+
+    bindSubmissionsTableAutoSubmit(document);
   });
 
 })(jQuery);
