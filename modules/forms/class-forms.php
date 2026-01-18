@@ -44,13 +44,24 @@ final class TWT_TCRM_Forms {
     }
 
     $schema = get_post_meta($form_id, 'twt_form_schema_json', true);
-    $layout = get_post_meta($form_id, 'twt_form_layout_json', true);
-
     $schema_arr = self::decode_json($schema);
-    $layout_arr = self::decode_json($layout);
 
     if (!$schema_arr || empty($schema_arr['questions']) || !is_array($schema_arr['questions'])) {
       return '<p>O schema do formulário está inválido ou vazio.</p>';
+    }
+
+    // NEW: layout agora vem dentro do schema (compatível)
+    $layout_arr = [];
+    if (!empty($schema_arr['layout']) && is_array($schema_arr['layout'])) {
+      $layout_arr = $schema_arr['layout'];
+    }
+
+    $layout_mode = isset($layout_arr['mode']) ? sanitize_key($layout_arr['mode']) : 'single';
+    if (!in_array($layout_mode, ['single', 'steps'], true)) $layout_mode = 'single';
+
+    $steps_total = 0;
+    if ($layout_mode === 'steps' && !empty($layout_arr['steps']) && is_array($layout_arr['steps'])) {
+      $steps_total = count($layout_arr['steps']);
     }
 
     $action_url = admin_url('admin-post.php');
@@ -60,7 +71,6 @@ final class TWT_TCRM_Forms {
     if (class_exists('TWT_TCRM_Form_Renderer') && method_exists('TWT_TCRM_Form_Renderer', 'schema_needs_multipart')) {
       $needs_multipart = (bool) TWT_TCRM_Form_Renderer::schema_needs_multipart($schema_arr);
     } else {
-      // fallback simples, se o renderer ainda não tem helper
       foreach ($schema_arr['questions'] as $q) {
         $t = isset($q['type']) ? sanitize_key($q['type']) : '';
         if ($t === 'image_upload' || $t === 'file_upload') {
@@ -71,28 +81,48 @@ final class TWT_TCRM_Forms {
     }
     $enctype = $needs_multipart ? ' enctype="multipart/form-data"' : '';
 
+    // defaults (para UX)
+    $default_campaign_id = (int) get_post_meta($form_id, 'twt_campaign_id', true);
+    $selected_campaign_id = isset($_POST['twt_campaign_id']) ? (int) wp_unslash($_POST['twt_campaign_id']) : $default_campaign_id;
+
+    $default_location_id = (int) get_post_meta($form_id, 'twt_location_id', true);
+    $selected_location_id = isset($_POST['twt_location_id']) ? (int) wp_unslash($_POST['twt_location_id']) : $default_location_id;
+
     $out = '';
     $out .= '<div class="twt-tcrm twt-tcrm-form-wrap">';
-    $out .= '<form method="post" action="' . esc_url($action_url) . '" class="twt-tcrm-form" data-form-id="' . esc_attr($form_id) . '" data-user-id="' . esc_attr($user_id) . '"' . $enctype . '>';
+
+    $out .= '<form method="post" action="' . esc_url($action_url) . '" class="twt-tcrm-form"'
+      . ' data-form-id="' . esc_attr($form_id) . '"'
+      . ' data-user-id="' . esc_attr($user_id) . '"'
+      . ' data-layout-mode="' . esc_attr($layout_mode) . '"'
+      . ' data-steps-total="' . esc_attr((string) (int) $steps_total) . '"'
+      . $enctype . '>';
+
     $out .= '<input type="hidden" name="action" value="' . esc_attr(self::ACTION_SUBMIT) . '">';
     $out .= '<input type="hidden" name="twt_form_id" value="' . esc_attr($form_id) . '">';
     $out .= wp_nonce_field(self::NONCE_ACTION, self::NONCE_FIELD, true, false);
 
     // Mensagens simples via querystring
-    if (isset($_GET['twt_tcrm_ok']) && $_GET['twt_tcrm_ok'] === '1') {
+    if (isset($_GET['twt_tcrm_ok']) && wp_unslash($_GET['twt_tcrm_ok']) === '1') {
       $out .= '<div class="twt-tcrm-notice twt-tcrm-success">Report submetido com sucesso.</div>';
     }
     if (isset($_GET['twt_tcrm_err'])) {
-      $out .= '<div class="twt-tcrm-notice twt-tcrm-error">Falha ao submeter: ' . esc_html(sanitize_text_field($_GET['twt_tcrm_err'])) . '.</div>';
+      $out .= '<div class="twt-tcrm-notice twt-tcrm-error">Falha ao submeter: ' . esc_html(sanitize_text_field(wp_unslash($_GET['twt_tcrm_err']))) . '.</div>';
     }
 
-    // Render via renderer dedicado
+    // Contexto (Local + Campanha)
+    if (class_exists('TWT_TCRM_Form_Renderer') && method_exists('TWT_TCRM_Form_Renderer', 'render_context_fields')) {
+      $out .= TWT_TCRM_Form_Renderer::render_context_fields($form_id, $user_id, $selected_location_id, $selected_campaign_id);
+    }
+
+    // Perguntas (+ layout)
     if (class_exists('TWT_TCRM_Form_Renderer')) {
       $out .= TWT_TCRM_Form_Renderer::render_questions($schema_arr, $layout_arr);
     } else {
       $out .= '<p>Renderer em falta (TWT_TCRM_Form_Renderer).</p>';
     }
 
+    // Actions: em modo steps o JS vai gerir botões; ainda assim deixamos submit para fallback
     $out .= '<div class="twt-tcrm-actions">';
     $out .= '<button type="submit" class="twt-tcrm-btn">Submeter report</button>';
     $out .= '</div>';
@@ -145,7 +175,7 @@ final class TWT_TCRM_Forms {
       $meta = [];
 
       if ($brand_id) $meta[] = 'Marca: ' . esc_html(get_the_title($brand_id));
-      if ($campaign_id) $meta[] = 'Campanha: ' . esc_html(get_the_title($campaign_id));
+      if ($campaign_id) $meta[] = 'Campanha (default): ' . esc_html(get_the_title($campaign_id));
 
       $out .= '<li>';
       $out .= '<strong>' . $label . '</strong>';
@@ -172,7 +202,8 @@ final class TWT_TCRM_Forms {
       exit;
     }
 
-    if (!isset($_POST[self::NONCE_FIELD]) || !wp_verify_nonce($_POST[self::NONCE_FIELD], self::NONCE_ACTION)) {
+    $nonce = isset($_POST[self::NONCE_FIELD]) ? sanitize_text_field(wp_unslash($_POST[self::NONCE_FIELD])) : '';
+    if (!$nonce || !wp_verify_nonce($nonce, self::NONCE_ACTION)) {
       wp_safe_redirect(self::redirect_back_with_error('nonce'));
       exit;
     }
@@ -199,7 +230,20 @@ final class TWT_TCRM_Forms {
     }
 
     $brand_id = (int) get_post_meta($form_id, 'twt_brand_id', true);
-    $campaign_id = (int) get_post_meta($form_id, 'twt_campaign_id', true);
+
+    // campanha escolhida (0 permitido), validada contra pivot do form
+    $campaign_id = isset($_POST['twt_campaign_id']) ? (int) wp_unslash($_POST['twt_campaign_id']) : 0;
+    if (!self::campaign_allowed_for_form($form_id, $campaign_id)) {
+      wp_safe_redirect(self::redirect_back_with_error('campanha'));
+      exit;
+    }
+
+    // local escolhido (0 permitido apenas se o form não exigir local)
+    $location_id = isset($_POST['twt_location_id']) ? (int) wp_unslash($_POST['twt_location_id']) : 0;
+    if (!self::location_allowed_for_form_and_user($form_id, $user_id, $location_id)) {
+      wp_safe_redirect(self::redirect_back_with_error('local'));
+      exit;
+    }
 
     $questions_index = self::index_questions($schema_arr['questions']);
 
@@ -213,11 +257,10 @@ final class TWT_TCRM_Forms {
       $type = isset($q['type']) ? sanitize_key($q['type']) : 'text';
       $required = !empty($q['required']);
 
-      // Uploads: vêm em $_FILES
       if ($type === 'image_upload' || $type === 'file_upload') {
         $file = self::extract_uploaded_file($key);
 
-        $is_empty_upload = (!$file || (int)$file['error'] === 4);
+        $is_empty_upload = (!$file || (int) $file['error'] === 4);
         if ($required && $is_empty_upload) {
           $errors[] = $key;
           continue;
@@ -232,7 +275,6 @@ final class TWT_TCRM_Forms {
           continue;
         }
 
-        // Valida mimetype básico: se for image_upload, exige image/*
         $allowed_mimes = [];
         if ($type === 'image_upload') {
           $allowed_mimes = ['jpg|jpeg|jpe' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif', 'webp' => 'image/webp'];
@@ -252,18 +294,16 @@ final class TWT_TCRM_Forms {
             'kind' => 'json',
             'json' => wp_json_encode([
               'url' => isset($uploaded['url']) ? esc_url_raw($uploaded['url']) : '',
-              'attachment_id' => isset($uploaded['attachment_id']) ? (int)$uploaded['attachment_id'] : 0,
+              'attachment_id' => isset($uploaded['attachment_id']) ? (int) $uploaded['attachment_id'] : 0,
               'mime' => isset($uploaded['mime']) ? sanitize_text_field($uploaded['mime']) : '',
               'filename' => isset($uploaded['filename']) ? sanitize_file_name($uploaded['filename']) : '',
-              'size' => isset($uploaded['size']) ? (int)$uploaded['size'] : 0,
+              'size' => isset($uploaded['size']) ? (int) $uploaded['size'] : 0,
             ], JSON_UNESCAPED_UNICODE),
           ],
         ];
         continue;
       }
 
-      // Campos normais: vêm em $_POST['twt_q'][key]
-      // Checkbox não marcado não vem no POST, assumimos "0"
       if ($type === 'checkbox') {
         $raw = isset($_POST['twt_q'][$key]) ? $_POST['twt_q'][$key] : '0';
       } else {
@@ -272,10 +312,9 @@ final class TWT_TCRM_Forms {
 
       $parsed = self::parse_value_by_type($raw, $type);
 
-      // Valida select/radio contra opções definidas no schema
       if (($type === 'select' || $type === 'radio') && !$parsed['is_empty']) {
         $allowed = self::get_allowed_options($questions_index, $key);
-        if ($allowed && !in_array((string)$parsed['text'], $allowed, true)) {
+        if ($allowed && !in_array((string) $parsed['text'], $allowed, true)) {
           $errors[] = $key;
           continue;
         }
@@ -314,14 +353,15 @@ final class TWT_TCRM_Forms {
       [
         'form_id' => $form_id,
         'brand_id' => $brand_id,
-        'campaign_id' => $campaign_id ? $campaign_id : null,
+        'campaign_id' => (int) $campaign_id,
+        'location_id' => (int) $location_id,
         'user_id' => $user_id,
         'submitted_at' => current_time('mysql'),
         'status' => 'submitted',
         'meta_json' => wp_json_encode($meta, JSON_UNESCAPED_UNICODE),
       ],
       [
-        '%d', '%d', '%d', '%d', '%s', '%s', '%s'
+        '%d', '%d', '%d', '%d', '%d', '%s', '%s', '%s'
       ]
     );
 
@@ -344,28 +384,43 @@ final class TWT_TCRM_Forms {
         'created_at' => current_time('mysql'),
       ];
 
-      // formatos tolerantes com NULL
       $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s'];
 
       $v = $a['value'];
 
-      if ($v['kind'] === 'text') $row['value_text'] = isset($v['text']) ? (string)$v['text'] : '';
-      if ($v['kind'] === 'number') $row['value_number'] = isset($v['number']) ? (string)$v['number'] : null;
-      if ($v['kind'] === 'currency') $row['value_currency'] = isset($v['currency']) ? (string)$v['currency'] : null;
-      if ($v['kind'] === 'percent') $row['value_percent'] = isset($v['percent']) ? (string)$v['percent'] : null;
-      if ($v['kind'] === 'json') $row['value_json'] = isset($v['json']) ? (string)$v['json'] : null;
+      if ($v['kind'] === 'text') $row['value_text'] = isset($v['text']) ? (string) $v['text'] : '';
+      if ($v['kind'] === 'number') $row['value_number'] = isset($v['number']) ? (string) $v['number'] : null;
+      if ($v['kind'] === 'currency') $row['value_currency'] = isset($v['currency']) ? (string) $v['currency'] : null;
+      if ($v['kind'] === 'percent') $row['value_percent'] = isset($v['percent']) ? (string) $v['percent'] : null;
+      if ($v['kind'] === 'json') $row['value_json'] = isset($v['json']) ? (string) $v['json'] : null;
 
       $wpdb->insert($t_ans, $row, $formats);
+    }
+
+    if (class_exists('TWT_TCRM_Email_Automations')) {
+      TWT_TCRM_Email_Automations::handle_submission($submission_id);
     }
 
     wp_safe_redirect(self::redirect_back_ok());
     exit;
   }
 
+  // ======= RESTO DO FICHEIRO: mantém exatamente como tens hoje =======
+  // can_view_form, get_assigned_forms, campaign_allowed_for_form, location_allowed_for_form_and_user,
+  // parse_value_by_type, extract_uploaded_file, handle_upload, index_questions, get_allowed_options,
+  // decode_json, redirect_back_ok, redirect_back_with_error
+  // (não repito aqui para não crescer demais; mas se quiseres eu devolvo o ficheiro mesmo “verbatim 100%” com tudo)
+
+
   /**
    * Permissão de ver/submeter um form:
    * - admin/gestor interno: sempre
    * - user normal: tem de estar atribuído e o form tem de estar activo
+   *
+   * ATUALIZAÇÃO:
+   * - deixa de exigir match exato de campaign_id no assignment, porque a campanha é escolhida na submissão
+   * - mantém brand_id e form_id como obrigatórios
+   * - campaign_id no assignment passa a ser "campanha alvo" (se quiseres manter). Para já aceitamos qualquer campaign.
    */
   private static function can_view_form($user_id, $form_id) {
     if (TWT_TCRM_Roles::is_admin_like($user_id)) {
@@ -381,20 +436,15 @@ final class TWT_TCRM_Forms {
     $t_assign = TWT_TCRM_DB::table_assignments();
 
     $brand_id = (int) get_post_meta($form_id, 'twt_brand_id', true);
-    $campaign_id = (int) get_post_meta($form_id, 'twt_campaign_id', true);
 
     $sql = "SELECT id FROM $t_assign
             WHERE user_id = %d
               AND form_id = %d
               AND brand_id = %d
               AND active = 1
-              AND (
-                (campaign_id IS NULL AND %d = 0)
-                OR (campaign_id = %d)
-              )
             LIMIT 1";
 
-    $found = $wpdb->get_var($wpdb->prepare($sql, $user_id, $form_id, $brand_id, $campaign_id, $campaign_id));
+    $found = $wpdb->get_var($wpdb->prepare($sql, $user_id, $form_id, $brand_id));
     return !empty($found);
   }
 
@@ -420,14 +470,72 @@ final class TWT_TCRM_Forms {
     return $forms ? $forms : [];
   }
 
+  /**
+   * NEW: valida campanha escolhida vs campanhas permitidas no form (pivot).
+   * - campaign_id=0 é sempre permitido (sem campanha).
+   * - se o form não tiver campanhas configuradas, só permite 0.
+   */
+  private static function campaign_allowed_for_form($form_id, $campaign_id) {
+    $form_id = (int) $form_id;
+    $campaign_id = (int) $campaign_id;
+
+    if ($campaign_id === 0) return true;
+
+    if (!class_exists('TWT_TCRM_Form_Renderer') || !method_exists('TWT_TCRM_Form_Renderer', 'get_form_campaign_ids')) {
+      // fallback: se não temos pivot disponível, aceita o default do meta
+      $default = (int) get_post_meta($form_id, 'twt_campaign_id', true);
+      return $default === $campaign_id;
+    }
+
+    $allowed = TWT_TCRM_Form_Renderer::get_form_campaign_ids($form_id);
+    if (!$allowed) {
+      return false;
+    }
+    return in_array($campaign_id, $allowed, true);
+  }
+
+  /**
+   * NEW: valida local escolhido:
+   * - se o form tiver locais configurados, location_id tem de ser >0 e pertencer ao pivot do form
+   * - e o user tem de ter esse local atribuído (twt_location_assignments active=1)
+   * - se o form não tiver locais configurados, location_id pode ser 0 ou um local do user
+   */
+  private static function location_allowed_for_form_and_user($form_id, $user_id, $location_id) {
+    $form_id = (int) $form_id;
+    $user_id = (int) $user_id;
+    $location_id = (int) $location_id;
+
+    // NEW: admin-like não bloqueia por assignments (consistente com o renderer)
+    if (class_exists('TWT_TCRM_Roles') && TWT_TCRM_Roles::is_admin_like($user_id)) {
+      return true;
+    }
+
+    if (!class_exists('TWT_TCRM_Form_Renderer') || !method_exists('TWT_TCRM_Form_Renderer', 'get_form_location_ids')) {
+      // Sem engine => não bloqueia (compat)
+      return true;
+    }
+
+    $form_locs = TWT_TCRM_Form_Renderer::get_form_location_ids($form_id);
+    $user_locs = TWT_TCRM_Form_Renderer::get_user_location_ids($user_id);
+
+    // Se o form exige locais, location_id é obrigatório e tem de estar na interseção
+    if (!empty($form_locs)) {
+      if ($location_id <= 0) return false;
+      return in_array($location_id, $form_locs, true) && in_array($location_id, $user_locs, true);
+    }
+
+    // Se o form não restringe locais:
+    if ($location_id === 0) return true;
+    return in_array($location_id, $user_locs, true);
+  }
+
   private static function parse_value_by_type($raw, $type) {
-    // Uploads tratados fora
     if ($raw === null) {
       return ['is_empty' => true, 'kind' => 'text', 'text' => ''];
     }
 
     if (is_array($raw)) {
-      $clean = array_map(function($v) {
+      $clean = array_map(function ($v) {
         return sanitize_text_field(wp_unslash($v));
       }, $raw);
 
@@ -446,20 +554,17 @@ final class TWT_TCRM_Forms {
     $is_empty = ($raw === '' || $raw === null);
 
     if ($type === 'checkbox') {
-      // aceitar "on", "1", 1, true
       $val = ($raw === '1' || $raw === 1 || $raw === true || $raw === 'on') ? 1 : 0;
-      return ['is_empty' => false, 'kind' => 'number', 'number' => (int)$val];
+      return ['is_empty' => false, 'kind' => 'number', 'number' => (int) $val];
     }
 
     if ($type === 'date') {
       if ($is_empty) return ['is_empty' => true, 'kind' => 'text', 'text' => ''];
-      // HTML date já vem YYYY-MM-DD
       return ['is_empty' => false, 'kind' => 'text', 'text' => sanitize_text_field($raw)];
     }
 
     if ($type === 'time') {
       if ($is_empty) return ['is_empty' => true, 'kind' => 'text', 'text' => ''];
-      // HTML time vem HH:MM (ou HH:MM:SS)
       return ['is_empty' => false, 'kind' => 'text', 'text' => sanitize_text_field($raw)];
     }
 
@@ -505,7 +610,6 @@ final class TWT_TCRM_Forms {
   private static function extract_uploaded_file($key) {
     if (!isset($_FILES['twt_upload'])) return null;
 
-    // Estrutura: twt_upload[key]
     $f = $_FILES['twt_upload'];
 
     if (!isset($f['name'][$key])) return null;
@@ -535,7 +639,7 @@ final class TWT_TCRM_Forms {
     $upload = wp_handle_upload($file, $overrides);
 
     if (isset($upload['error'])) {
-      return ['error' => (string)$upload['error']];
+      return ['error' => (string) $upload['error']];
     }
 
     $file_path = isset($upload['file']) ? $upload['file'] : '';
@@ -564,10 +668,10 @@ final class TWT_TCRM_Forms {
 
     return [
       'url' => $url,
-      'attachment_id' => (int)$attachment_id,
+      'attachment_id' => (int) $attachment_id,
       'mime' => $mime,
       'filename' => basename($file_path),
-      'size' => isset($file['size']) ? (int)$file['size'] : 0,
+      'size' => isset($file['size']) ? (int) $file['size'] : 0,
     ];
   }
 
@@ -588,11 +692,14 @@ final class TWT_TCRM_Forms {
     $out = [];
     foreach ($q['options'] as $o) {
       $o = sanitize_text_field($o);
-      if ($o !== '') $out[] = (string)$o;
+      if ($o !== '') $out[] = (string) $o;
     }
     return $out;
   }
 
+  /**
+   * decode JSON helper
+   */
   private static function decode_json($json) {
     if (!$json) return null;
     $arr = json_decode($json, true);
@@ -612,5 +719,3 @@ final class TWT_TCRM_Forms {
     return add_query_arg(['twt_tcrm_err' => $code], esc_url_raw($ref));
   }
 }
-
-TWT_TCRM_Forms::boot();
