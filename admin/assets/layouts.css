@@ -1,0 +1,82 @@
+.twt-tcrm-layouts .twt-layouts-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.twt-tcrm-layouts .twt-layouts-col {
+  min-width: 280px;
+}
+
+.twt-tcrm-layouts .twt-layouts-col-btn {
+  min-width: 140px;
+}
+
+.twt-tcrm-layouts .twt-layouts-editor {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 980px) {
+  .twt-tcrm-layouts .twt-layouts-editor {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.twt-tcrm-layouts .twt-layouts-card {
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+}
+
+.twt-tcrm-layouts .twt-layouts-preview {
+  grid-column: 1 / -1;
+}
+
+.twt-layout-preview {
+  border: 1px solid rgba(0,0,0,0.10);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.twt-layout-preview .twt-p-card {
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.twt-layout-preview .twt-p-card:last-child {
+  margin-bottom: 0;
+}
+
+.twt-layout-preview .twt-p-kpi {
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-right: 10px;
+}
+
+.twt-layout-preview .twt-p-kpi-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.twt-layout-preview .twt-p-kpi-val {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.twt-layout-preview .twt-p-btn {
+  display: inline-block;
+  padding: 10px 12px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}
