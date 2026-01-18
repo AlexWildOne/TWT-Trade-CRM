@@ -58,23 +58,38 @@ final class TWT_TCRM_CPT_Locations {
       true
     );
 
-    $browser_key = class_exists('TWT_TCRM_Settings')
-      ? get_option(TWT_TCRM_Settings::OPTION_GMAPS_BROWSER_KEY, '')
-      : get_option('twt_tcrm_gmaps_browser_key', '');
+    // Fonte única da key: Settings Admin
+    $browser_key = '';
+    if (class_exists('TWT_TCRM_Settings_Admin') && method_exists('TWT_TCRM_Settings_Admin', 'get_gmaps_browser_key')) {
+      $browser_key = (string) TWT_TCRM_Settings_Admin::get_gmaps_browser_key();
+    }
+    $browser_key = is_string($browser_key) ? trim($browser_key) : '';
 
+    // Localização para o locations.js (modelo "sem callback", com retry no JS)
     wp_localize_script('twt-tcrm-locations-admin', 'TWT_TCRM_LOC', [
-      'browserKey' => (string) $browser_key,
       'hasKey' => $browser_key ? 1 : 0,
+      'browserKey' => $browser_key, // mantido por compatibilidade (se o teu JS ainda ler isto)
+      'selectors' => [
+        'address' => '#twt_location_address',
+        'lat' => '#twt_location_lat',
+        'lng' => '#twt_location_lng',
+        'placeId' => '#twt_location_place_id',
+        'radius' => '#twt_location_radius_m',
+        'map' => '#twt-location-map',
+        'latRead' => '#twt-loc-lat-read',
+        'lngRead' => '#twt-loc-lng-read',
+        'placeRead' => '#twt-loc-place-read',
+      ],
       'i18n' => [
-        'missingKey' => 'Falta a Browser key do Google Maps. Vai a TWT CRM, Definições, Google Maps.',
+        'missingKey' => 'Falta a Browser key do Google Maps. Vai a TWT CRM → Definições.',
       ],
     ]);
 
+    // Carrega Google Maps JS API com Places (SEM callback param)
     if ($browser_key) {
       $src = add_query_arg([
         'key' => rawurlencode($browser_key),
         'libraries' => 'places',
-        'callback' => 'initTwtTcrmLocationMap',
       ], 'https://maps.googleapis.com/maps/api/js');
 
       wp_enqueue_script(
@@ -148,7 +163,7 @@ final class TWT_TCRM_CPT_Locations {
     echo '<select name="twt_brand_id" style="min-width:320px;">';
     echo '<option value="0">Sem marca</option>';
     foreach ($brands as $b) {
-      echo '<option value="' . esc_attr($b->ID) . '"' . selected($brand_id, (int)$b->ID, false) . '>' . esc_html($b->post_title) . '</option>';
+      echo '<option value="' . esc_attr($b->ID) . '"' . selected($brand_id, (int) $b->ID, false) . '>' . esc_html($b->post_title) . '</option>';
     }
     echo '</select>';
     echo '</td></tr>';
@@ -157,7 +172,7 @@ final class TWT_TCRM_CPT_Locations {
     echo '<select name="twt_campaign_id" style="min-width:320px;">';
     echo '<option value="0">Sem campanha</option>';
     foreach ($campaigns as $c) {
-      echo '<option value="' . esc_attr($c->ID) . '"' . selected($campaign_id, (int)$c->ID, false) . '>' . esc_html($c->post_title) . '</option>';
+      echo '<option value="' . esc_attr($c->ID) . '"' . selected($campaign_id, (int) $c->ID, false) . '>' . esc_html($c->post_title) . '</option>';
     }
     echo '</select>';
     echo '</td></tr>';
@@ -284,5 +299,3 @@ final class TWT_TCRM_CPT_Locations {
     }
   }
 }
-
-TWT_TCRM_CPT_Locations::register();

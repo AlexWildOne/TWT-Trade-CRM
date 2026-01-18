@@ -114,5 +114,3 @@ final class TWT_TCRM_Settings_Admin {
     return (string) get_option(self::OPT_GMAPS_BROWSER_KEY, '');
   }
 }
-
-TWT_TCRM_Settings_Admin::boot();

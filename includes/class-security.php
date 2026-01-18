@@ -41,7 +41,7 @@ final class TWT_TCRM_Security {
     }
 
     if ($redirect_url) {
-      wp_safe_redirect($redirect_url);
+      wp_safe_redirect(esc_url_raw($redirect_url));
       exit;
     }
 
@@ -53,7 +53,44 @@ final class TWT_TCRM_Security {
    */
   public static function get_int($source, $key, $default = 0) {
     if (!is_array($source) || !isset($source[$key])) return (int) $default;
-    return (int) $source[$key];
+    return (int) wp_unslash($source[$key]);
+  }
+
+  /**
+   * Sanitiza um float vindo de request.
+   */
+  public static function get_float($source, $key, $default = 0.0) {
+    if (!is_array($source) || !isset($source[$key])) return (float) $default;
+
+    $raw = wp_unslash($source[$key]);
+    $raw = is_string($raw) ? trim($raw) : $raw;
+
+    if ($raw === '' || $raw === null) return (float) $default;
+
+    // aceita vírgulas
+    if (is_string($raw)) $raw = str_replace(',', '.', $raw);
+
+    $val = is_numeric($raw) ? (float) $raw : (float) $default;
+    return $val;
+  }
+
+  /**
+   * Sanitiza um boolean vindo de request.
+   * Aceita: '1', 1, true, 'true', 'on', 'yes'
+   */
+  public static function get_bool($source, $key, $default = false) {
+    if (!is_array($source) || !isset($source[$key])) return (bool) $default;
+
+    $raw = wp_unslash($source[$key]);
+
+    if ($raw === true || $raw === 1 || $raw === '1') return true;
+    if (is_string($raw)) {
+      $v = strtolower(trim($raw));
+      if (in_array($v, ['true', 'on', 'yes'], true)) return true;
+      if (in_array($v, ['false', 'off', 'no', '0', ''], true)) return false;
+    }
+
+    return (bool) $default;
   }
 
   /**
@@ -81,11 +118,20 @@ final class TWT_TCRM_Security {
   }
 
   /**
+   * Sanitiza email.
+   */
+  public static function get_email($source, $key, $default = '') {
+    if (!is_array($source) || !isset($source[$key])) return (string) $default;
+    $email = sanitize_email(wp_unslash($source[$key]));
+    return $email ? $email : (string) $default;
+  }
+
+  /**
    * Sanitiza array de ints vindo de request.
    */
   public static function get_int_array($source, $key) {
     if (!is_array($source) || !isset($source[$key]) || !is_array($source[$key])) return [];
-    return array_values(array_filter(array_map('intval', $source[$key]), function($v) {
+    return array_values(array_filter(array_map('intval', $source[$key]), function ($v) {
       return $v > 0;
     }));
   }
@@ -99,7 +145,7 @@ final class TWT_TCRM_Security {
     foreach ($source[$key] as $v) {
       $out[] = sanitize_text_field(wp_unslash($v));
     }
-    return array_values(array_filter($out, function($v) {
+    return array_values(array_filter($out, function ($v) {
       return $v !== '';
     }));
   }
@@ -117,10 +163,11 @@ final class TWT_TCRM_Security {
    */
   public static function redirect_back($fallback = '') {
     $ref = '';
+
     if (isset($_REQUEST['_wp_http_referer'])) {
       $ref = wp_unslash($_REQUEST['_wp_http_referer']);
     } elseif (isset($_SERVER['HTTP_REFERER'])) {
-      $ref = wp_unslash($_SERVER['HTTP_REFERER']);
+      $ref = (string) $_SERVER['HTTP_REFERER'];
     }
 
     $ref = $ref ? esc_url_raw($ref) : '';
@@ -148,7 +195,8 @@ final class TWT_TCRM_Security {
    * Retorna array, ou null se inválido.
    */
   public static function decode_json($json) {
-    if (!$json) return null;
+    if ($json === null) return null;
+    if ($json === '') return null;
     if (is_array($json)) return $json;
 
     $json = wp_unslash($json);
@@ -156,6 +204,7 @@ final class TWT_TCRM_Security {
 
     $arr = json_decode($json, true);
     if (json_last_error() !== JSON_ERROR_NONE) return null;
+    if (!is_array($arr)) return null;
 
     return $arr;
   }

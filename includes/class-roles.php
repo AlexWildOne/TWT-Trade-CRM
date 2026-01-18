@@ -11,58 +11,61 @@ final class TWT_TCRM_Roles {
   const ROLE_MANAGER = 'twt_trade_manager';
 
   /**
-   * Roles e capabilities na ativação
+   * Roles e capabilities (recomendado chamar na ativação do plugin)
    */
-public static function add_roles_caps() {
+  public static function add_roles_caps() {
 
-  // 1) Garante roles
-  if (!get_role(self::ROLE_BRAND)) {
-    add_role(self::ROLE_BRAND, 'Marca (Cliente)', ['read' => true]);
-  }
-
-  if (!get_role(self::ROLE_FIELD)) {
-    add_role(self::ROLE_FIELD, 'Utilizador Terreno', ['read' => true]);
-  }
-
-  if (!get_role(self::ROLE_MANAGER)) {
-    add_role(self::ROLE_MANAGER, 'Gestor Trade (Interno)', ['read' => true]);
-  }
-
-  // 2) Garante caps para cada role (mesmo se já existia)
-  $brand = get_role(self::ROLE_BRAND);
-  if ($brand) {
-    $brand->add_cap('twt_tcrm_view_brand_dashboard');
-    $brand->add_cap('twt_tcrm_view_brand_reports');
-    $brand->add_cap('twt_tcrm_export_brand_reports');
-  }
-
-  $field = get_role(self::ROLE_FIELD);
-  if ($field) {
-    $field->add_cap('twt_tcrm_submit_reports');
-    $field->add_cap('twt_tcrm_view_own_reports');
-    $field->add_cap('twt_tcrm_view_own_dashboard');
-  }
-
-  $manager = get_role(self::ROLE_MANAGER);
-  if ($manager) {
-    $manager->add_cap('twt_tcrm_manage_brands');
-    $manager->add_cap('twt_tcrm_manage_campaigns');
-    $manager->add_cap('twt_tcrm_manage_forms');
-    $manager->add_cap('twt_tcrm_manage_assignments');
-    $manager->add_cap('twt_tcrm_view_all_reports');
-    $manager->add_cap('twt_tcrm_export_all_reports');
-    $manager->add_cap('twt_tcrm_manage_insights');
-  }
-
-  // 3) Administrator recebe tudo
-  $admin = get_role('administrator');
-  if ($admin) {
-    foreach (self::all_caps() as $cap) {
-      $admin->add_cap($cap);
+    // 1) Garante roles
+    if (!get_role(self::ROLE_BRAND)) {
+      add_role(self::ROLE_BRAND, 'Marca (Cliente)', ['read' => true]);
     }
-  }
 
-    // Se existir editor, podes decidir dar algumas caps, por defeito não damos.
+    if (!get_role(self::ROLE_FIELD)) {
+      add_role(self::ROLE_FIELD, 'Utilizador Terreno', ['read' => true]);
+    }
+
+    if (!get_role(self::ROLE_MANAGER)) {
+      add_role(self::ROLE_MANAGER, 'Gestor Trade (Interno)', ['read' => true]);
+    }
+
+    // 2) Garante caps para cada role (mesmo se já existia)
+    $brand = get_role(self::ROLE_BRAND);
+    if ($brand) {
+      $brand->add_cap('twt_tcrm_view_brand_dashboard');
+      $brand->add_cap('twt_tcrm_view_brand_reports');
+      $brand->add_cap('twt_tcrm_export_brand_reports');
+    }
+
+    $field = get_role(self::ROLE_FIELD);
+    if ($field) {
+      $field->add_cap('twt_tcrm_submit_reports');
+      $field->add_cap('twt_tcrm_view_own_reports');
+      $field->add_cap('twt_tcrm_view_own_dashboard');
+    }
+
+    $manager = get_role(self::ROLE_MANAGER);
+    if ($manager) {
+      $manager->add_cap('twt_tcrm_manage_brands');
+      $manager->add_cap('twt_tcrm_manage_campaigns');
+      $manager->add_cap('twt_tcrm_manage_forms');
+      $manager->add_cap('twt_tcrm_manage_assignments');
+      $manager->add_cap('twt_tcrm_manage_locations');
+      $manager->add_cap('twt_tcrm_view_all_reports');
+      $manager->add_cap('twt_tcrm_export_all_reports');
+      $manager->add_cap('twt_tcrm_manage_insights');
+    }
+
+    // 3) Administrator recebe tudo
+    $admin = get_role('administrator');
+    if ($admin) {
+      foreach (self::all_caps() as $cap) {
+        $admin->add_cap($cap);
+      }
+    }
+
+    // 4) (Opcional) Editor - por defeito não damos nada
+    // $editor = get_role('editor');
+    // if ($editor) { ... }
   }
 
   /**
@@ -88,6 +91,7 @@ public static function add_roles_caps() {
       'twt_tcrm_manage_forms',
       'twt_tcrm_manage_assignments',
       'twt_tcrm_manage_insights',
+      'twt_tcrm_manage_locations',
 
       // Visualização e export
       'twt_tcrm_view_all_reports',
@@ -115,6 +119,7 @@ public static function add_roles_caps() {
     // administrator ou gestor interno
     return user_can($user, 'twt_tcrm_view_all_reports')
       || user_can($user, 'twt_tcrm_manage_forms')
+      || user_can($user, 'twt_tcrm_manage_locations')
       || user_can($user, 'manage_options');
   }
 
